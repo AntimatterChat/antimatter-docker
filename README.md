@@ -91,6 +91,19 @@ current branch unless `SERVER_REF_LOCAL` / `REF_<PLUGIN>` say otherwise. The res
 `PUSH=1 TAGS="ghcr.io/antimatterchat/antimatter:1.0.0" scripts/build-image.sh` (after
 `docker login ghcr.io`).
 
+## Trying it locally
+
+```sh
+docker compose -f compose.local.yml up -d
+```
+
+Then open http://localhost:8065 and create the first account (it becomes the system admin). It
+runs the published `latest` image with a local PostgreSQL, on localhost only; set
+`ANTIMATTER_IMAGE=ghcr.io/antimatterchat/antimatter:dev` to try an image built by
+`scripts/build-image.sh`. While the GHCR package is private, run `docker login ghcr.io` first with
+a GitHub token that has `read:packages`. `docker compose -f compose.local.yml down -v` removes it
+all, data included.
+
 ## Running
 
 ```sh

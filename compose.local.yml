@@ -1,0 +1,56 @@
+# Try Antimatter on your own machine, no configuration needed:
+#
+#   docker compose -f compose.local.yml up -d
+#   open http://localhost:8065   (the first account you create becomes the system admin)
+#
+# Stop with `docker compose -f compose.local.yml down`; add `-v` to also delete the data.
+# For a real deployment use docker-compose.yml instead (TLS proxy, real passwords, .env file).
+
+name: antimatter-local
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: antimatter
+      POSTGRES_PASSWORD: antimatter-local-only
+      POSTGRES_DB: antimatter
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U antimatter -d antimatter"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  antimatter:
+    image: ${ANTIMATTER_IMAGE:-ghcr.io/antimatterchat/antimatter:latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      MM_SQLSETTINGS_DATASOURCE: postgres://antimatter:antimatter-local-only@postgres:5432/antimatter?sslmode=disable&connect_timeout=10
+      MM_SERVICESETTINGS_SITEURL: http://localhost:8065
+      MM_BLEVESETTINGS_INDEXDIR: /antimatter/data/bleve-indexes
+    ports:
+      # Bound to localhost only: this setup uses a throwaway database password and plain HTTP.
+      - "127.0.0.1:8065:8065"
+      - "127.0.0.1:8443:8443/udp"
+      - "127.0.0.1:8443:8443/tcp"
+    volumes:
+      - config:/antimatter/config
+      - data:/antimatter/data
+      - logs:/antimatter/logs
+      - plugins:/antimatter/plugins
+      - client-plugins:/antimatter/client/plugins
+
+volumes:
+  postgres:
+  config:
+  data:
+  logs:
+  plugins:
+  client-plugins:
