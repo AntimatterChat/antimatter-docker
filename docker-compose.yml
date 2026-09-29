@@ -1,0 +1,63 @@
+# Ready-to-run Antimatter with PostgreSQL. Copy .env.example to .env, edit it, then:
+#   docker compose up -d
+# The server settings below still use the MM_* names the server reads today.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-antimatter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-antimatter}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-antimatter} -d ${POSTGRES_DB:-antimatter}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  antimatter:
+    image: ${ANTIMATTER_IMAGE:-ghcr.io/antimatterchat/antimatter:latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 200
+    tmpfs:
+      - /tmp
+    environment:
+      TZ: ${TZ:-UTC}
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      MM_SQLSETTINGS_DATASOURCE: postgres://${POSTGRES_USER:-antimatter}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-antimatter}?sslmode=disable&connect_timeout=10
+      MM_SERVICESETTINGS_SITEURL: ${SITE_URL:?set SITE_URL in .env}
+      MM_BLEVESETTINGS_INDEXDIR: /antimatter/data/bleve-indexes
+    ports:
+      - "${HTTP_PORT:-8065}:8065"
+      # Calls media (RTC); open it on the host firewall as well.
+      - "${CALLS_PORT:-8443}:8443/udp"
+      - "${CALLS_PORT:-8443}:8443/tcp"
+    volumes:
+      - config:/antimatter/config
+      - data:/antimatter/data
+      - logs:/antimatter/logs
+      - plugins:/antimatter/plugins
+      - client-plugins:/antimatter/client/plugins
+
+volumes:
+  postgres:
+  config:
+  data:
+  logs:
+  plugins:
+  client-plugins:

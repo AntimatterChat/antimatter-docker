@@ -1,0 +1,155 @@
+name: Build Antimatter image
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      server_ref:
+        description: Server ref (branch, tag or commit); empty = build.env SERVER_REF
+        required: false
+        default: ""
+      plugins_ref:
+        description: Ref for every plugin; empty = the refs in plugins.json
+        required: false
+        default: ""
+      version:
+        description: Extra image tag (e.g. 1.0.0)
+        required: false
+        default: ""
+      push:
+        description: Push the image to the registry
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SERVER_REF_OVERRIDE: ${{ inputs.server_ref }}
+  PLUGINS_REF_OVERRIDE: ${{ inputs.plugins_ref }}
+  BUILDX_CACHE: gha
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.plugins.outputs.names }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plugins
+        run: echo "names=$(python3 -c 'import json; print(json.dumps([p["name"] for p in json.load(open("plugins.json"))]))')" >> "$GITHUB_OUTPUT"
+
+  plugin:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        name: ${{ fromJSON(needs.setup.outputs.plugins) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: crazy-max/ghaction-github-runtime@v3
+      - name: Fetch sources
+        run: |
+          if [ -n "$PLUGINS_REF_OVERRIDE" ]; then
+            export "REF_$(echo '${{ matrix.name }}' | tr '[:lower:]-' '[:upper:]_')=$PLUGINS_REF_OVERRIDE"
+          fi
+          scripts/fetch-sources.sh '${{ matrix.name }}'
+      - name: Build plugin
+        run: scripts/build-plugins.sh '${{ matrix.name }}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-${{ matrix.name }}
+          path: out/plugins/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: crazy-max/ghaction-github-runtime@v3
+      - name: Fetch sources
+        run: |
+          if [ -n "$SERVER_REF_OVERRIDE" ]; then export SERVER_REF="$SERVER_REF_OVERRIDE"; fi
+          scripts/fetch-sources.sh server
+      - name: Build server
+        env:
+          BUILD_NUMBER: ${{ inputs.version || github.ref_name }}-${{ github.run_number }}
+        run: scripts/build-server.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server
+          path: out/server/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  image:
+    needs: [plugin, server]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load build settings
+        run: grep -vE '^\s*(#|$)' build.env >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: plugin-*
+          path: out/plugins
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: server
+          path: out/server
+      - name: Sign plugins
+        env:
+          ANTIMATTER_PLUGIN_SIGNING_KEY: ${{ secrets.ANTIMATTER_PLUGIN_SIGNING_KEY }}
+        run: |
+          if [ -z "$ANTIMATTER_PLUGIN_SIGNING_KEY" ]; then
+            echo "::error::The ANTIMATTER_PLUGIN_SIGNING_KEY secret is not set"
+            exit 1
+          fi
+          scripts/sign-plugins.sh
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
+            type=sha
+          labels: |
+            org.opencontainers.image.title=Antimatter
+            org.opencontainers.image.description=Antimatter team chat server with bundled plugins
+            org.opencontainers.image.licenses=AGPL-3.0-only
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: ${{ github.event_name != 'workflow_dispatch' || inputs.push }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=image
+          cache-to: type=gha,mode=max,scope=image

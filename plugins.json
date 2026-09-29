@@ -1,0 +1,10 @@
+[
+  {"name": "agents",    "repo": "AntimatterChat/antimatter-plugin-agents",    "ref": "antimatter", "local": "mattermost-plugin-agents"},
+  {"name": "boards",    "repo": "AntimatterChat/antimatter-plugin-boards",    "ref": "antimatter", "local": "mattermost-plugin-boards"},
+  {"name": "calls",     "repo": "AntimatterChat/antimatter-plugin-calls",     "ref": "antimatter", "local": "mattermost-plugin-calls"},
+  {"name": "github",    "repo": "AntimatterChat/antimatter-plugin-github",    "ref": "antimatter", "local": "mattermost-plugin-github"},
+  {"name": "gitlab",    "repo": "AntimatterChat/antimatter-plugin-gitlab",    "ref": "antimatter", "local": "mattermost-plugin-gitlab"},
+  {"name": "jira",      "repo": "AntimatterChat/antimatter-plugin-jira",      "ref": "antimatter", "local": "mattermost-plugin-jira"},
+  {"name": "metrics",   "repo": "AntimatterChat/Antimatter-plugin-metrics",   "ref": "antimatter", "local": "mattermost-plugin-metrics"},
+  {"name": "playbooks", "repo": "AntimatterChat/antimatter-plugin-playbooks", "ref": "antimatter", "local": "mattermost-plugin-playbooks"}
+]
