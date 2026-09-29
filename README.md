@@ -92,3 +92,8 @@ prepackaged bundles) for an admin to enable.
 The image keeps upstream's layout under `/antimatter`, runs as uid 2000 on a distroless base, and
 provides `antimatter` and `amctl` in `/antimatter/bin`. The server still reads its settings from
 `MM_*` environment variables until its own rebrand adds the `AM_*` names.
+
+## License
+
+Apache License 2.0 (see `LICENSE`), except `Dockerfile`, which is adapted from the Mattermost
+server's Dockerfile and stays under the GNU AGPL v3 (see `NOTICE` and `LICENSE-AGPL-3.0`).

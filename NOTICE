@@ -1,0 +1,14 @@
+antimatter-docker
+Copyright 2026 The Antimatter contributors
+
+This repository is licensed under the Apache License, Version 2.0 (see LICENSE), except for the
+file noted below.
+
+Dockerfile
+  Adapted from server/build/Dockerfile of the Mattermost server
+  (https://github.com/mattermost/mattermost), Copyright (c) 2015-present Mattermost, Inc.,
+  and licensed under the GNU Affero General Public License, version 3 (see LICENSE-AGPL-3.0).
+  Modifications Copyright 2026 The Antimatter contributors, under the same license.
+
+The Docker images built by this repository contain the Antimatter server and plugins, each under
+its own license (AGPL-3.0 or Apache-2.0); see the LICENSE and NOTICE files shipped with them.

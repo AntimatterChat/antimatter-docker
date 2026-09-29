@@ -1,5 +1,10 @@
 # syntax=docker/dockerfile:1.7
 #
+# SPDX-License-Identifier: AGPL-3.0-only
+# Adapted from server/build/Dockerfile of the Mattermost server,
+# Copyright (c) 2015-present Mattermost, Inc. Modifications Copyright 2026 The Antimatter
+# contributors. See NOTICE and LICENSE-AGPL-3.0.
+#
 # Antimatter runtime image. Built by scripts/build-image.sh from:
 #   out/server/antimatter-linux-<arch>.tar.gz   server release tarballs (scripts/build-server.sh)
 #   out/plugins/*.tar.gz + *.tar.gz.sig          signed plugin bundles (scripts/sign-plugins.sh)
