@@ -24,6 +24,7 @@ docker buildx build \
   --build-arg "BUILD_NUMBER=${build_number}" \
   --build-arg "BUILD_NODE_OPTIONS=${BUILD_NODE_OPTIONS}" \
   $(buildx_cache_args server) \
+  --progress plain \
   --output "type=local,dest=${tmp}" \
   "${ROOT}/docker"
 

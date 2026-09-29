@@ -27,7 +27,8 @@ for name in "${names[@]}"; do
     --build-arg "GO_IMAGE=${GO_IMAGE}" \
     --build-arg "NODE_VERSION=${node}" \
     $(buildx_cache_args "plugin-${name}") \
-    --output "type=local,dest=${tmp}" \
+    --progress plain \
+  --output "type=local,dest=${tmp}" \
     "${ROOT}/docker"
   shopt -s nullglob
   bundles=("${tmp}"/*.tar.gz)

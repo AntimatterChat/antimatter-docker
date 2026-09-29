@@ -64,7 +64,7 @@ jobs:
       - name: Fetch sources
         run: scripts/fetch-sources.sh '${{ matrix.name }}'
       - name: Build plugin
-        run: scripts/build-plugins.sh '${{ matrix.name }}'
+        run: scripts/ci-run.sh "Build plugin ${{ matrix.name }}" scripts/build-plugins.sh '${{ matrix.name }}'
       - uses: actions/upload-artifact@v4
         with:
           name: plugin-${{ matrix.name }}
@@ -87,7 +87,7 @@ jobs:
       - name: Build server
         env:
           BUILD_NUMBER: ${{ inputs.version || github.ref_name }}-${{ github.run_number }}
-        run: scripts/build-server.sh
+        run: scripts/ci-run.sh "Build server" scripts/build-server.sh
       - uses: actions/upload-artifact@v4
         with:
           name: server
@@ -122,7 +122,7 @@ jobs:
             echo "::error::The ANTIMATTER_PLUGIN_SIGNING_KEY secret is not set"
             exit 1
           fi
-          scripts/sign-plugins.sh
+          scripts/ci-run.sh "Sign plugins" scripts/sign-plugins.sh
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
