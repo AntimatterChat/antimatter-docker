@@ -7,13 +7,19 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_DIR="${SRC_DIR:-${ROOT}/src}"
 OUT_DIR="${OUT_DIR:-${ROOT}/out}"
 
-# Load build.env without overriding variables already set in the environment.
+# Load build.env without overriding variables already set in the environment, remembering which
+# values are build.env defaults (see is_default).
+BUILD_ENV_DEFAULTS=" "
 while IFS='=' read -r key value; do
   [[ -z "${key}" || "${key}" == \#* ]] && continue
   if [[ -z "${!key+x}" ]]; then
     export "${key}=${value}"
+    BUILD_ENV_DEFAULTS+="${key} "
   fi
 done < "${ROOT}/build.env"
+
+# is_default <VAR>: true when VAR holds its build.env default rather than an explicit value.
+is_default() { [[ "${BUILD_ENV_DEFAULTS}" == *" $1 "* ]]; }
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }

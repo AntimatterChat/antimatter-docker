@@ -6,12 +6,16 @@ on:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
-      server_ref:
-        description: Server ref (branch, tag or commit); empty = build.env SERVER_REF
+      prefer_ref:
+        description: Branch/tag to build wherever it exists (server and plugins); others use their default
         required: false
         default: ""
-      plugins_ref:
-        description: Ref for every plugin; empty = the refs in plugins.json
+      server_ref:
+        description: Server ref (branch, tag or commit); overrides prefer_ref; empty = build.env SERVER_REF
+        required: false
+        default: ""
+      plugin_refs:
+        description: Per-plugin refs, overriding prefer_ref (e.g. "calls=new-ui boards=my-fix")
         required: false
         default: ""
       version:
@@ -31,8 +35,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  PREFER_REF: ${{ inputs.prefer_ref }}
+  PLUGIN_REFS: ${{ inputs.plugin_refs }}
   SERVER_REF_OVERRIDE: ${{ inputs.server_ref }}
-  PLUGINS_REF_OVERRIDE: ${{ inputs.plugins_ref }}
   BUILDX_CACHE: gha
 
 jobs:
@@ -57,11 +62,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - uses: crazy-max/ghaction-github-runtime@v3
       - name: Fetch sources
-        run: |
-          if [ -n "$PLUGINS_REF_OVERRIDE" ]; then
-            export "REF_$(echo '${{ matrix.name }}' | tr '[:lower:]-' '[:upper:]_')=$PLUGINS_REF_OVERRIDE"
-          fi
-          scripts/fetch-sources.sh '${{ matrix.name }}'
+        run: scripts/fetch-sources.sh '${{ matrix.name }}'
       - name: Build plugin
         run: scripts/build-plugins.sh '${{ matrix.name }}'
       - uses: actions/upload-artifact@v4

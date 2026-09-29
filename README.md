@@ -20,8 +20,18 @@ build-image.sh     runtime image (Dockerfile)        -> ghcr.io/antimatterchat/a
 - `build.env`: server repository/ref, image name, platforms, toolchain image.
 - `plugins.json`: the plugin repositories and the ref built for each.
 
-Both default to an `antimatter` branch in every repository (see *Building on GitHub*). Override any
-ref for one build with `SERVER_REF=...` or `REF_<PLUGIN>=...` (e.g. `REF_CALLS=my-branch`).
+Both default to an `antimatter` branch in every repository (see *Building on GitHub*). For one
+build, each component's ref is picked as follows (first match wins):
+
+1. an explicit ref: `SERVER_REF=...` for the server; `REF_<PLUGIN>=...` or
+   `PLUGIN_REFS="calls=new-ui boards=my-fix"` for plugins;
+2. `PREFER_REF=...`: used for every repository that has that branch or tag;
+3. the default from `build.env` / `plugins.json`.
+
+For a feature spanning several repositories, e.g. a new UI in the server and in Calls, push a
+`new-ui` branch to each and build with `PREFER_REF=new-ui` (the *prefer_ref* field of the GitHub
+workflow); the other plugins build from their default branch. Give such builds their own image tag
+(the workflow's *version* field) so they don't replace `latest`.
 
 ## Plugin signing
 
