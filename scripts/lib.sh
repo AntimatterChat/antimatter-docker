@@ -51,16 +51,34 @@ else:
     sys.exit("unknown plugin: " + sys.argv[2])' "${ROOT}/plugins.json" "$1" "$2"
 }
 
-# node_version <dir>: the Node.js version pinned by the checkout's .nvmrc.
+# node_version <dir>: the Node.js version pinned by the checkout's .nvmrc. Partial versions
+# (e.g. "20.11") resolve to the newest matching release listed on nodejs.org.
 node_version() {
-  local dir="$1" file
+  local dir="$1" file version=""
   for file in "${dir}/.nvmrc" "${dir}/webapp/.nvmrc"; do
     if [[ -f "${file}" ]]; then
-      tr -d ' \r\n' < "${file}" | sed 's/^v//'
-      return
+      version="$(tr -d ' \r\n' < "${file}" | sed 's/^v//')"
+      break
     fi
   done
-  die "no .nvmrc found in ${dir}"
+  [[ -n "${version}" ]] || die "no .nvmrc found in ${dir}"
+  if [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "${version}"
+    return
+  fi
+  python3 - "${version}" <<'PY' || die "can't resolve Node.js version ${version}"
+import json, sys, urllib.request
+want = sys.argv[1].split(".")
+with urllib.request.urlopen("https://nodejs.org/dist/index.json", timeout=30) as resp:
+    releases = json.load(resp)
+for release in releases:  # newest first
+    parts = release["version"].lstrip("v").split(".")
+    if parts[:len(want)] == want:
+        print(".".join(parts))
+        break
+else:
+    sys.exit(1)
+PY
 }
 
 # buildx_cache_args <scope>: optional GitHub Actions cache for BuildKit (set BUILDX_CACHE=gha).

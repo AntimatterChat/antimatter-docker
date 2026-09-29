@@ -16,6 +16,9 @@
 #                        e.g. PREFER_REF=new-ui builds the new-ui branch of the server and of the
 #                        plugins that have one, and the default ref everywhere else
 #   3. the default:      build.env SERVER_REF / plugins.json ref (HEAD with SOURCES=local)
+#
+# Plugin builds derive their version from git tags, which the forks don't carry: each plugin's
+# checkout is tagged v<version> from plugins.json (override with VERSION_<NAME>=...).
 
 source "$(dirname "$0")/lib.sh"
 require git python3
@@ -105,5 +108,9 @@ for target in "${targets[@]}"; do
     default="$(plugin_field "${target}" ref)"
     [[ "${SOURCES}" == "local" ]] && default=HEAD
     clone "${target}" "${url}" "$(resolve_ref "${url}" "${explicit}" "${default}")"
+    version_var="VERSION_$(echo "${target}" | tr '[:lower:]-' '[:upper:]_')"
+    version="${!version_var:-$(plugin_field "${target}" version)}"
+    git -C "${SRC_DIR}/${target}" tag "v${version#v}"
+    log "    tagged v${version#v}"
   fi
 done

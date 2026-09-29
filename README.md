@@ -18,7 +18,10 @@ build-image.sh     runtime image (Dockerfile)        -> ghcr.io/antimatterchat/a
 ## What gets built
 
 - `build.env`: server repository/ref, image name, platforms, toolchain image.
-- `plugins.json`: the plugin repositories and the ref built for each.
+- `plugins.json`: the plugin repositories, the ref built for each, and the plugin version. The
+  plugins derive their version from git tags, which the forks don't carry, so the build tags each
+  checkout `v<version>` (override with `VERSION_<PLUGIN>=...`). Keep versions semver-comparable:
+  the mobile apps check the Calls and Playbooks versions to enable features.
 
 Both default to an `antimatter` branch in every repository (see *Building on GitHub*). For one
 build, each component's ref is picked as follows (first match wins):
@@ -81,8 +84,9 @@ SOURCES=local scripts/build-all.sh
 scripts/build-all.sh
 ```
 
-`SOURCES=local` reads the server from `../mattermost-nolicense` (`SERVER_LOCAL` in `build.env`);
-pick its branch with `SERVER_REF_LOCAL=antimatter-plugin-signing`. The result is loaded as
+`SOURCES=local` reads the checkouts next to this repository (`../antimatter`,
+`../antimatter-plugin-*`; see `SERVER_LOCAL` in `build.env` and `local` in `plugins.json`), at their
+current branch unless `SERVER_REF_LOCAL` / `REF_<PLUGIN>` say otherwise. The result is loaded as
 `ghcr.io/antimatterchat/antimatter:dev`. To publish a multi-platform image instead:
 `PUSH=1 TAGS="ghcr.io/antimatterchat/antimatter:1.0.0" scripts/build-image.sh` (after
 `docker login ghcr.io`).
