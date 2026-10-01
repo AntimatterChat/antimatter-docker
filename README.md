@@ -64,10 +64,11 @@ where the variant expects it, or set `SERVER_REF_LOCAL` / `REF_<PLUGIN>`.
 
 ## Plugin signing
 
-The server only installs prepackaged plugins whose detached signature verifies against the
+The server only installs plugins whose detached signature verifies against a key it trusts: the
 Antimatter plugin signing key compiled into it (fingerprint in
-`keys/antimatter-plugin-signing.fingerprint`, public key in `keys/`). The server must therefore
-include the change that trusts this key (server branch `antimatter-plugin-signing`).
+`keys/antimatter-plugin-signing.fingerprint`, public key in `keys/`), which signs the prepackaged
+plugins built here, Mattermost's plugin signing key, so that plugins from Mattermost's Marketplace
+install, and any key an admin adds.
 
 The private key never goes into a repository. `sign-plugins.sh` reads it from
 `ANTIMATTER_PLUGIN_SIGNING_KEY` (armored key, the GitHub secret), `ANTIMATTER_PLUGIN_SIGNING_KEY_FILE`,
