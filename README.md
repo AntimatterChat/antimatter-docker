@@ -117,7 +117,8 @@ are enabled on first start; the others are offered in the Marketplace (installed
 prepackaged bundles) for an admin to enable.
 
 The image keeps upstream's layout under `/antimatter`, runs as uid 2000 on a distroless base, and
-provides `antimatter` and `amctl` in `/antimatter/bin`. The server still reads its settings from
+provides `antimatter` and `amctl` in `/antimatter/bin` (renamed from `mattermost` and `mmctl` when
+built from a server ref older than that rename). The server still reads its settings from
 `MM_*` environment variables until its own rebrand adds the `AM_*` names.
 
 ## License

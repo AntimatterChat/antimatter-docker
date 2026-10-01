@@ -40,15 +40,16 @@ RUN mkdir -p /opt/doc-libs \
 COPY out/server/antimatter-linux-${TARGETARCH}.tar.gz /tmp/server.tar.gz
 COPY out/plugins/ /tmp/plugins/
 
-# The release tarball has a single top-level directory; install its content as /antimatter.
-# Until the server's binaries are renamed, antimatter/amctl are provided as links to them.
+# The release tarball has a single top-level directory (antimatter/); install its content as
+# /antimatter. Server refs from before the binaries were renamed still ship bin/mattermost and
+# bin/mmctl: rename those, so the image only has antimatter and amctl.
 RUN mkdir -p /tmp/server \
   && tar -xzf /tmp/server.tar.gz -C /tmp/server \
   && mv /tmp/server/* /antimatter \
   && mkdir -p /antimatter/data /antimatter/logs /antimatter/plugins /antimatter/client/plugins /antimatter/prepackaged_plugins \
   && cp /tmp/plugins/*.tar.gz /tmp/plugins/*.tar.gz.sig /antimatter/prepackaged_plugins/ \
-  && if [ ! -e /antimatter/bin/antimatter ]; then ln -s mattermost /antimatter/bin/antimatter; fi \
-  && if [ ! -e /antimatter/bin/amctl ]; then ln -s mmctl /antimatter/bin/amctl; fi \
+  && if [ -e /antimatter/bin/mattermost ]; then mv /antimatter/bin/mattermost /antimatter/bin/antimatter; fi \
+  && if [ -e /antimatter/bin/mmctl ]; then mv /antimatter/bin/mmctl /antimatter/bin/amctl; fi \
   && test -x /antimatter/bin/antimatter && test -x /antimatter/bin/amctl \
   && mkdir -p /antimatter/.postgresql && chmod 700 /antimatter/.postgresql \
   && chown -R ${PUID}:${PGID} /antimatter \
