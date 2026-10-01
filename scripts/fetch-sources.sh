@@ -8,6 +8,9 @@
 #
 # Usage: scripts/fetch-sources.sh [server] [plugin names...]   (default: everything)
 #
+# VARIANT (default: stable) selects the set of plugins and the default refs, see variants/ and
+# plugins.json.
+#
 # Which ref each component is built from, first match wins:
 #   1. an explicit ref:  SERVER_REF=... / SERVER_REF_LOCAL=... for the server;
 #                        REF_<NAME>=... (e.g. REF_CALLS=new-ui) or an entry of
@@ -15,7 +18,8 @@
 #   2. PREFER_REF=...    used for every component whose repository has that branch or tag,
 #                        e.g. PREFER_REF=new-ui builds the new-ui branch of the server and of the
 #                        plugins that have one, and the default ref everywhere else
-#   3. the default:      build.env SERVER_REF / plugins.json ref (HEAD with SOURCES=local)
+#   3. the default:      SERVER_REF of variants/<VARIANT>.env or build.env / the plugin's ref in
+#                        plugins.json, after its overrides for VARIANT (HEAD with SOURCES=local)
 #
 # Plugin builds derive their version from git tags, which the forks don't carry: each plugin's
 # checkout is tagged v<version> from plugins.json (override with VERSION_<NAME>=...).
@@ -84,10 +88,15 @@ if [[ ${#targets[@]} -eq 0 ]]; then
   mapfile -t targets < <(echo server; plugins_field name)
 fi
 
-# Reject PLUGIN_REFS entries naming unknown plugins, so a typo doesn't silently build the default.
+# Reject PLUGIN_REFS entries and targets naming plugins this variant doesn't build, so a typo
+# doesn't silently build the default.
 known=" $(plugins_field name | tr '\n' ' ')"
 for entry in ${PLUGIN_REFS//,/ }; do
   [[ "${entry}" == *=* && "${known}" == *" ${entry%%=*} "* ]] || die "bad PLUGIN_REFS entry: ${entry}"
+done
+for target in "${targets[@]}"; do
+  [[ "${target}" == "server" || "${known}" == *" ${target} "* ]] \
+    || die "unknown plugin ${target} for the ${VARIANT} variant"
 done
 
 mkdir -p "${SRC_DIR}"

@@ -7,22 +7,33 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_DIR="${SRC_DIR:-${ROOT}/src}"
 OUT_DIR="${OUT_DIR:-${ROOT}/out}"
 
-# Load build.env without overriding variables already set in the environment, remembering which
-# values are build.env defaults (see is_default).
-BUILD_ENV_DEFAULTS=" "
-while IFS='=' read -r key value; do
-  [[ -z "${key}" || "${key}" == \#* ]] && continue
-  if [[ -z "${!key+x}" ]]; then
-    export "${key}=${value}"
-    BUILD_ENV_DEFAULTS+="${key} "
-  fi
-done < "${ROOT}/build.env"
-
-# is_default <VAR>: true when VAR holds its build.env default rather than an explicit value.
-is_default() { [[ "${BUILD_ENV_DEFAULTS}" == *" $1 "* ]]; }
-
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+
+# The image variant to build (see variants/): selects the image name, the server ref and, through
+# plugins.json, which plugins are built and from which refs.
+export VARIANT="${VARIANT:-stable}"
+[[ -f "${ROOT}/variants/${VARIANT}.env" ]] || die "unknown VARIANT ${VARIANT} (no variants/${VARIANT}.env)"
+
+# Load variants/<VARIANT>.env, then build.env, without overriding variables already set in the
+# environment (or by the variant), remembering which values are defaults (see is_default).
+BUILD_ENV_DEFAULTS=" "
+load_env_file() {
+  local key value
+  while IFS='=' read -r key value; do
+    [[ -z "${key}" || "${key}" == \#* ]] && continue
+    if [[ -z "${!key+x}" ]]; then
+      export "${key}=${value}"
+      BUILD_ENV_DEFAULTS+="${key} "
+    fi
+  done < "$1"
+}
+load_env_file "${ROOT}/variants/${VARIANT}.env"
+load_env_file "${ROOT}/build.env"
+
+# is_default <VAR>: true when VAR holds its variant or build.env default rather than an explicit
+# value.
+is_default() { [[ "${BUILD_ENV_DEFAULTS}" == *" $1 "* ]]; }
 
 require() {
   for cmd in "$@"; do
@@ -35,20 +46,32 @@ require_buildx() {
   docker buildx version >/dev/null 2>&1 || die "docker buildx is required (install the docker-buildx plugin)"
 }
 
-# plugins_field <field>: prints the field of every entry in plugins.json, one per line.
+# Plugin entries of plugins.json for VARIANT: entries with a "variants" list only belong to the
+# variants it names, and "overrides": {"<variant>": {...}} replaces fields (e.g. "ref") for one
+# variant.
+PLUGINS_PY='import json, sys
+def plugins(path, variant):
+    for p in json.load(open(path)):
+        if variant in p.get("variants", [variant]):
+            yield {**p, **p.get("overrides", {}).get(variant, {})}
+'
+
+# plugins_field <field>: prints the field of every plugin of VARIANT, one per line.
 plugins_field() {
-  python3 -c 'import json,sys; [print(p[sys.argv[2]]) for p in json.load(open(sys.argv[1]))]' \
-    "${ROOT}/plugins.json" "$1"
+  python3 -c "${PLUGINS_PY}"'
+for p in plugins(sys.argv[1], sys.argv[2]):
+    print(p[sys.argv[3]])' "${ROOT}/plugins.json" "${VARIANT}" "$1"
 }
 
-# plugin_field <name> <field>
+# plugin_field <name> <field>: the field of one plugin of VARIANT.
 plugin_field() {
-  python3 -c 'import json,sys
-for p in json.load(open(sys.argv[1])):
-    if p["name"] == sys.argv[2]:
-        print(p[sys.argv[3]]); break
+  python3 -c "${PLUGINS_PY}"'
+for p in plugins(sys.argv[1], sys.argv[2]):
+    if p["name"] == sys.argv[3]:
+        print(p[sys.argv[4]]); break
 else:
-    sys.exit("unknown plugin: " + sys.argv[2])' "${ROOT}/plugins.json" "$1" "$2"
+    sys.exit("plugin " + sys.argv[3] + " is not part of the " + sys.argv[2] + " variant")' \
+    "${ROOT}/plugins.json" "${VARIANT}" "$1" "$2"
 }
 
 # node_version <dir>: the Node.js version pinned by the checkout's .nvmrc. Partial versions

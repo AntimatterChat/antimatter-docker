@@ -22,6 +22,10 @@ build-image.sh     runtime image (Dockerfile)        -> ghcr.io/antimatterchat/a
   plugins derive their version from git tags, which the forks don't carry, so the build tags each
   checkout `v<version>` (override with `VERSION_<PLUGIN>=...`). Keep versions semver-comparable:
   the mobile apps check the Calls and Playbooks versions to enable features.
+- `variants/<variant>.env`: one image variant, selected with `VARIANT=<variant>` (default
+  `stable`). Its settings override `build.env` (e.g. `IMAGE`, `SERVER_REF`). In `plugins.json`, a
+  plugin with a `"variants"` list is only built for the variants it names, and
+  `"overrides": {"<variant>": {"ref": ...}}` changes its fields for one variant.
 
 Both default to an `antimatter` branch in every repository (see *Building on GitHub*). For one
 build, each component's ref is picked as follows (first match wins):
@@ -29,7 +33,7 @@ build, each component's ref is picked as follows (first match wins):
 1. an explicit ref: `SERVER_REF=...` for the server; `REF_<PLUGIN>=...` or
    `PLUGIN_REFS="calls=new-ui boards=my-fix"` for plugins;
 2. `PREFER_REF=...`: used for every repository that has that branch or tag;
-3. the default from `build.env` / `plugins.json`.
+3. the default from the variant, `build.env` and `plugins.json`.
 
 For a feature spanning several repositories, e.g. a new UI in the server and in Calls, push a
 `new-ui` branch to each and build with `PREFER_REF=new-ui` (the *prefer_ref* field of the GitHub
