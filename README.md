@@ -82,10 +82,10 @@ leaked, generate a new one, update `keys/` and the server's embedded key, and re
 2. Push the work to an `antimatter` branch of each fork (or change the refs in `build.env` /
    `plugins.json`), e.g.:
    ```sh
-   # server: the branch combining the fork work, including antimatter-plugin-signing
-   git -C ../mattermost push <remote> <your-server-branch>:antimatter
+   # server: the branch combining the fork work
+   git -C ../antimatter push <remote> <your-server-branch>:antimatter
    # each plugin
-   git -C ../mattermost-plugin-calls push <remote> rebrand-antimatter:antimatter
+   git -C ../antimatter-plugin-calls push <remote> <your-plugin-branch>:antimatter
    ```
 3. Add the repository secret `ANTIMATTER_PLUGIN_SIGNING_KEY` (Settings → Secrets and variables →
    Actions) with the full content of `~/.config/antimatter/plugin-signing/private-key.asc`.
