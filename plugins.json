@@ -1,10 +1,11 @@
 [
   {"name": "agents", "repo": "AntimatterChat/antimatter-plugin-agents", "ref": "antimatter", "local": "antimatter-plugin-agents", "version": "2.8.0"},
   {"name": "boards", "repo": "AntimatterChat/antimatter-plugin-boards", "ref": "antimatter", "local": "antimatter-plugin-boards", "version": "10.0.0"},
-  {"name": "calls", "repo": "AntimatterChat/antimatter-plugin-calls", "ref": "antimatter", "local": "antimatter-plugin-calls", "version": "1.12.5"},
+  {"name": "calls", "repo": "AntimatterChat/antimatter-plugin-calls", "ref": "antimatter", "local": "antimatter-plugin-calls", "version": "1.12.5", "overrides": {"next": {"ref": "antimatter-dev"}}},
   {"name": "github", "repo": "AntimatterChat/antimatter-plugin-github", "ref": "antimatter", "local": "antimatter-plugin-github", "version": "3.0.0"},
   {"name": "gitlab", "repo": "AntimatterChat/antimatter-plugin-gitlab", "ref": "antimatter", "local": "antimatter-plugin-gitlab", "version": "2.0.0"},
   {"name": "jira", "repo": "AntimatterChat/antimatter-plugin-jira", "ref": "antimatter", "local": "antimatter-plugin-jira", "version": "5.0.0"},
   {"name": "metrics", "repo": "AntimatterChat/Antimatter-plugin-metrics", "ref": "antimatter", "local": "Antimatter-plugin-metrics", "version": "0.8.0-rc1"},
-  {"name": "playbooks", "repo": "AntimatterChat/antimatter-plugin-playbooks", "ref": "antimatter", "local": "antimatter-plugin-playbooks", "version": "2.12.0-rc2"}
+  {"name": "playbooks", "repo": "AntimatterChat/antimatter-plugin-playbooks", "ref": "antimatter", "local": "antimatter-plugin-playbooks", "version": "2.12.0-rc2"},
+  {"name": "voice-channels", "repo": "AntimatterChat/antimatter-plugin-voice-channels", "ref": "antimatter-dev", "local": "antimatter-plugin-voice-channels", "version": "0.1.0", "variants": ["next"]}
 ]

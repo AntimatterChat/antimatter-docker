@@ -4,6 +4,13 @@ Builds the ready-to-use Antimatter Docker image: the Antimatter server with its 
 prepackaged (Agents, Boards, Calls, GitHub, GitLab, Jira, Metrics, Playbooks), signed with the
 Antimatter plugin signing key, for `linux/amd64` and `linux/arm64`.
 
+Two images are built from the same scripts (see *Variants*):
+
+| Image                                   | Variant  | Built from                                                  |
+|-----------------------------------------|----------|-------------------------------------------------------------|
+| `ghcr.io/antimatterchat/antimatter`      | `stable` | the `antimatter` branch of every repository                 |
+| `ghcr.io/antimatterchat/antimatter-next` | `next`   | `antimatter-dev` of the server, Calls and Voice Channels; `antimatter` of the other plugins |
+
 Everything is compiled inside Docker (`docker/build.Dockerfile`), so a local build and the GitHub
 build run the same toolchain.
 
@@ -12,7 +19,7 @@ fetch-sources.sh   clone the server and plugin repos into src/
 build-plugins.sh   make dist in each plugin          -> out/plugins/*.tar.gz
 build-server.sh    web app + linux amd64/arm64 build -> out/server/antimatter-linux-<arch>.tar.gz
 sign-plugins.sh    detached signatures               -> out/plugins/*.tar.gz.sig
-build-image.sh     runtime image (Dockerfile)        -> ghcr.io/antimatterchat/antimatter
+build-image.sh     runtime image (Dockerfile)        -> ghcr.io/antimatterchat/antimatter[-next]
 ```
 
 ## What gets built
@@ -39,6 +46,21 @@ For a feature spanning several repositories, e.g. a new UI in the server and in 
 `new-ui` branch to each and build with `PREFER_REF=new-ui` (the *prefer_ref* field of the GitHub
 workflow); the other plugins build from their default branch. Give such builds their own image tag
 (the workflow's *version* field) so they don't replace `latest`.
+
+### Variants
+
+- `stable` (`variants/stable.env`): `build.env` and `plugins.json` as they are.
+- `next` (`variants/next.env`): the `antimatter-dev` integration branches, which carry features
+  not merged into `antimatter` yet (the Fusion web UI, voice channels). The server and Calls build
+  from `antimatter-dev`, and the Voice Channels plugin, which needs both, is only part of this
+  image. Published as `ghcr.io/antimatterchat/antimatter-next`.
+
+```sh
+VARIANT=next scripts/build-all.sh
+```
+
+With `SOURCES=local`, checkouts still build at their current branch: check out `antimatter-dev`
+where the variant expects it, or set `SERVER_REF_LOCAL` / `REF_<PLUGIN>`.
 
 ## Plugin signing
 
