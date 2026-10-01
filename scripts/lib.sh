@@ -104,9 +104,12 @@ else:
 PY
 }
 
-# buildx_cache_args <scope>: optional GitHub Actions cache for BuildKit (set BUILDX_CACHE=gha).
+# buildx_cache_args <scope>: optional GitHub Actions cache for BuildKit (set BUILDX_CACHE=gha),
+# kept apart per variant (the stable variant keeps the plain scope names).
 buildx_cache_args() {
+  local scope="$1"
+  [[ "${VARIANT}" == "stable" ]] || scope="${VARIANT}-${scope}"
   if [[ "${BUILDX_CACHE:-}" == "gha" ]]; then
-    echo "--cache-from type=gha,scope=$1 --cache-to type=gha,mode=max,scope=$1"
+    echo "--cache-from type=gha,scope=${scope} --cache-to type=gha,mode=max,scope=${scope}"
   fi
 }

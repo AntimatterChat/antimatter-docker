@@ -4,8 +4,16 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+  # Sent when an antimatter-dev branch changes (see README), to rebuild antimatter-next.
+  repository_dispatch:
+    types: [antimatter-dev-updated]
   workflow_dispatch:
     inputs:
+      variant:
+        description: Image variant (variants/<variant>.env); next builds ghcr.io/antimatterchat/antimatter-next
+        type: choice
+        options: [stable, next]
+        default: stable
       prefer_ref:
         description: Branch/tag to build wherever it exists (server and plugins); others use their default
         required: false
@@ -30,11 +38,13 @@ on:
 permissions:
   contents: read
 
+# Pushes and tags build the stable image, repository_dispatch events the next one.
 concurrency:
-  group: build-image-${{ github.ref }}
+  group: build-image-${{ github.ref }}-${{ inputs.variant || (github.event_name == 'repository_dispatch' && 'next') || 'stable' }}
   cancel-in-progress: true
 
 env:
+  VARIANT: ${{ inputs.variant || (github.event_name == 'repository_dispatch' && 'next') || 'stable' }}
   PREFER_REF: ${{ inputs.prefer_ref }}
   PLUGIN_REFS: ${{ inputs.plugin_refs }}
   SERVER_REF_OVERRIDE: ${{ inputs.server_ref }}
@@ -48,7 +58,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: plugins
-        run: echo "names=$(python3 -c 'import json; print(json.dumps([p["name"] for p in json.load(open("plugins.json"))]))')" >> "$GITHUB_OUTPUT"
+        run: |
+          source scripts/lib.sh
+          echo "names=$(plugins_field name | python3 -c 'import json, sys; print(json.dumps(sys.stdin.read().split()))')" >> "$GITHUB_OUTPUT"
 
   plugin:
     needs: setup
@@ -104,7 +116,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Load build settings
-        run: grep -vE '^\s*(#|$)' build.env >> "$GITHUB_ENV"
+        run: |
+          source scripts/lib.sh
+          { echo "IMAGE=${IMAGE}"; echo "PLATFORMS=${PLATFORMS}"; } >> "$GITHUB_ENV"
       - uses: actions/download-artifact@v4
         with:
           pattern: plugin-*
@@ -141,8 +155,8 @@ jobs:
             type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
             type=sha
           labels: |
-            org.opencontainers.image.title=Antimatter
-            org.opencontainers.image.description=Antimatter team chat server with bundled plugins
+            org.opencontainers.image.title=${{ env.VARIANT == 'next' && 'Antimatter Next' || 'Antimatter' }}
+            org.opencontainers.image.description=Antimatter team chat server with bundled plugins${{ env.VARIANT == 'next' && ', built from the antimatter-dev branches' || '' }}
             org.opencontainers.image.licenses=AGPL-3.0-only
       - uses: docker/build-push-action@v6
         with:
@@ -152,5 +166,5 @@ jobs:
           push: ${{ github.event_name != 'workflow_dispatch' || inputs.push }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=image
-          cache-to: type=gha,mode=max,scope=image
+          cache-from: type=gha,scope=${{ env.VARIANT == 'stable' && 'image' || format('{0}-image', env.VARIANT) }}
+          cache-to: type=gha,mode=max,scope=${{ env.VARIANT == 'stable' && 'image' || format('{0}-image', env.VARIANT) }}
