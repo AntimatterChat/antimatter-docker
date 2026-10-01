@@ -155,6 +155,12 @@ all, data included.
 
 ## Running
 
+For a production server, use [`deploy/compose/`](deploy/compose/): the published images with
+PostgreSQL, nginx (TLS, websockets), the Calls port, the optional GIF service, Let's Encrypt,
+first admin, upgrades and backups, documented in its [README](deploy/compose/README.md).
+
+`docker-compose.yml` here is a minimal setup without the proxy:
+
 ```sh
 cp .env.example .env    # set SITE_URL and POSTGRES_PASSWORD
 docker compose up -d
