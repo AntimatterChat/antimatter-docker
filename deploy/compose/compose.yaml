@@ -1,0 +1,212 @@
+# Antimatter in production: Antimatter, PostgreSQL, nginx (TLS) and, optionally, the GIF service.
+# See README.md in this directory. In short:
+#
+#   cp .env.example .env && chmod 600 .env    # then fill it in
+#   docker compose up -d
+#
+# The server reads its settings from MM_* variables (the names the server knows today). Settings
+# given here are locked in the System Console; leave the others to the console.
+
+name: antimatter
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:17-alpine}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-antimatter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-antimatter}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  antimatter:
+    # ghcr.io/antimatterchat/antimatter (stable) or ghcr.io/antimatterchat/antimatter-next (the
+    # integration branches, with the GIFs, voice channels, polls, mail, calendar, notes and
+    # whiteboard plugins). Pin a version tag rather than latest.
+    image: ${ANTIMATTER_IMAGE:-ghcr.io/antimatterchat/antimatter:latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      nofile:
+        soft: 49152
+        hard: 49152
+    tmpfs:
+      - /tmp
+    # Other MM_* settings (e-mail, ...) can be added to .env; the server ignores the rest of it.
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ:-UTC}
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      MM_SQLSETTINGS_DATASOURCE: postgres://${POSTGRES_USER:-antimatter}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-antimatter}?sslmode=disable&connect_timeout=10
+      MM_SERVICESETTINGS_SITEURL: https://${ANTIMATTER_DOMAIN:?set ANTIMATTER_DOMAIN in .env}
+      MM_SERVICESETTINGS_LISTENADDRESS: ":8065"
+      # Client addresses come from nginx (for rate limits, audits and IP filtering).
+      MM_SERVICESETTINGS_TRUSTEDPROXYIPHEADER: X-Forwarded-For X-Real-IP
+      MM_FILESETTINGS_DIRECTORY: /antimatter/data/
+      MM_PLUGINSETTINGS_DIRECTORY: /antimatter/plugins
+      MM_PLUGINSETTINGS_CLIENTDIRECTORY: /antimatter/client/plugins
+      MM_BLEVESETTINGS_INDEXDIR: /antimatter/data/bleve-indexes
+      # Calls: its media go straight to this container (not through nginx), see ports below.
+      MM_CALLS_UDP_SERVER_PORT: ${CALLS_PORT:-8443}
+      MM_CALLS_TCP_SERVER_PORT: ${CALLS_PORT:-8443}
+      MM_CALLS_ICE_HOST_OVERRIDE: ${CALLS_ICE_HOST:-}
+    ports:
+      # Calls media, UDP and TCP; same port on the host and in the container. Open it in the
+      # firewall.
+      - "${CALLS_PORT:-8443}:${CALLS_PORT:-8443}/udp"
+      - "${CALLS_PORT:-8443}:${CALLS_PORT:-8443}/tcp"
+    volumes:
+      - config:/antimatter/config
+      - data:/antimatter/data
+      - logs:/antimatter/logs
+      - plugins:/antimatter/plugins
+      - client-plugins:/antimatter/client/plugins
+    networks:
+      - frontend
+      - backend
+      - gifs
+    healthcheck:
+      test: ["CMD", "/antimatter/bin/amctl", "system", "status", "--local"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # The first start migrates the database, which can take minutes.
+      start_period: 5m
+      start_interval: 5s
+
+  nginx:
+    image: ${NGINX_IMAGE:-nginx:stable-alpine}
+    restart: unless-stopped
+    depends_on:
+      - antimatter
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      ANTIMATTER_DOMAIN: ${ANTIMATTER_DOMAIN}
+      TLS_CERTIFICATE: ${TLS_CERTIFICATE:-/etc/nginx/certs/fullchain.pem}
+      TLS_CERTIFICATE_KEY: ${TLS_CERTIFICATE_KEY:-/etc/nginx/certs/privkey.pem}
+      TZ: ${TZ:-UTC}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      # Rendered to /etc/nginx/conf.d/default.conf by the image's entrypoint, replacing the
+      # image's welcome page.
+      - ./nginx/antimatter.conf.template:/etc/nginx/templates/default.conf.template:ro
+      # Your own certificate: fullchain.pem and privkey.pem.
+      - ./certs:/etc/nginx/certs:ro
+      # Let's Encrypt (profile acme): certificates and HTTP-01 challenges.
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+      - nginx-cache:/var/cache/nginx
+    networks:
+      - frontend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/nginx-health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+
+  # The GIF and sticker service for the GIFs plugin (antimatter-next only), on profile "gifs".
+  # Only Antimatter reaches it, on the internal gifs network.
+  antimatter-gifs:
+    image: ${GIFS_IMAGE:-ghcr.io/antimatterchat/antimatter-gifs:latest}
+    profiles: [gifs]
+    restart: unless-stopped
+    depends_on:
+      antimatter-gifs-init:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      AM_GIFS_API_KEYS: ${GIFS_API_KEY:-}
+      AM_GIFS_UPLOAD_KEYS: ${GIFS_UPLOAD_KEY:-}
+      # All of Antimatter's requests share one API key and address, so a per-client limit would
+      # throttle every user at once. Set a limit if you expose the service (README.md).
+      AM_GIFS_RATE_LIMIT: ${GIFS_RATE_LIMIT:-0}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - gifs-data:/data
+    networks:
+      - gifs
+
+  # One-shot, before the GIF service starts: checks that it has an API key (without one its API
+  # would be open) and imports the bundled sticker pack into a new volume, then exits. Later runs
+  # only check; re-import the stickers with `docker compose run --rm antimatter-gifs stickers`.
+  antimatter-gifs-init:
+    image: ${GIFS_IMAGE:-ghcr.io/antimatterchat/antimatter-gifs:latest}
+    profiles: [gifs]
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    network_mode: none
+    environment:
+      AM_GIFS_API_KEYS: ${GIFS_API_KEY:-}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        if [ -z "$${AM_GIFS_API_KEYS}" ]; then echo "Set GIFS_API_KEY in .env" >&2; exit 1; fi;
+        [ -e /data/.stickers-imported ] ||
+        { antimatter-gifs stickers && touch /data/.stickers-imported; }
+    volumes:
+      - gifs-data:/data
+
+  # Let's Encrypt certificates (profile "acme"), renewed twice a day through nginx's port 80.
+  # Get the first certificate before starting nginx; see README.md.
+  certbot:
+    image: ${CERTBOT_IMAGE:-certbot/certbot:latest}
+    profiles: [acme]
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    networks:
+      - frontend
+
+networks:
+  # nginx and Antimatter; Antimatter's way out (push notifications, link previews, webhooks...).
+  frontend:
+  # Antimatter and PostgreSQL only, no Internet access.
+  backend:
+    internal: true
+  # Antimatter and the GIF service only, no Internet access.
+  gifs:
+    internal: true
+
+volumes:
+  postgres:
+  config:
+  data:
+  logs:
+  plugins:
+  client-plugins:
+  gifs-data:
+  nginx-cache:
+  letsencrypt:
+  certbot-www:
