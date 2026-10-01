@@ -90,11 +90,13 @@ leaked, generate a new one, update `keys/` and the server's embedded key, and re
 3. Add the repository secret `ANTIMATTER_PLUGIN_SIGNING_KEY` (Settings → Secrets and variables →
    Actions) with the full content of `~/.config/antimatter/plugin-signing/private-key.asc`.
    Then delete the local copy once it's backed up offline.
-4. Run the *Build Antimatter image* workflow (Actions tab), or push to `main` / a `v*` tag.
-   Images are published to `ghcr.io/antimatterchat/antimatter` with tags `latest` (main),
-   `<version>` (tags `vX.Y.Z` or the `version` input) and `sha-<commit>`. Make the package public
-   under the organisation's Packages settings if you want anonymous pulls.
-5. `antimatter-next` is built every night (03:17 UTC), by running the workflow with *variant*
+4. Run the *Build Antimatter images* workflow (Actions tab), or push to `main` / a `v*` tag.
+   Each variant is its own job and its own package (`build-variant.yml`): a push to `main` builds
+   both `ghcr.io/antimatterchat/antimatter` and `ghcr.io/antimatterchat/antimatter-next`, a `v*` tag
+   only `antimatter`. Tags are `latest` (main), `<version>` (tags `vX.Y.Z` or the `version` input)
+   and `sha-<commit>`. Make the packages public under the organisation's Packages settings if you
+   want anonymous pulls.
+5. `antimatter-next` is also built every night (03:17 UTC), by running the workflow with *variant*
    `next`, or by a `repository_dispatch` event of type `antimatter-dev-updated`, which the forks can
    send to rebuild it as soon as their `antimatter-dev` branch changes. That needs a token allowed
    to write this repository's contents (e.g. a fine-grained token with *Contents: read and write*
