@@ -7,6 +7,9 @@ on:
   # Sent when an antimatter-dev branch changes (see README), to rebuild antimatter-next.
   repository_dispatch:
     types: [antimatter-dev-updated]
+  # Nightly antimatter-next build, picking up whatever changed on the antimatter-dev branches.
+  schedule:
+    - cron: "17 3 * * *"
   workflow_dispatch:
     inputs:
       variant:
@@ -38,13 +41,14 @@ on:
 permissions:
   contents: read
 
-# Pushes and tags build the stable image, repository_dispatch events the next one.
+# Pushes and tags build the stable image, repository_dispatch events and the nightly schedule the
+# next one.
 concurrency:
-  group: build-image-${{ github.ref }}-${{ inputs.variant || (github.event_name == 'repository_dispatch' && 'next') || 'stable' }}
+  group: build-image-${{ github.ref }}-${{ inputs.variant || ((github.event_name == 'repository_dispatch' || github.event_name == 'schedule') && 'next') || 'stable' }}
   cancel-in-progress: true
 
 env:
-  VARIANT: ${{ inputs.variant || (github.event_name == 'repository_dispatch' && 'next') || 'stable' }}
+  VARIANT: ${{ inputs.variant || ((github.event_name == 'repository_dispatch' || github.event_name == 'schedule') && 'next') || 'stable' }}
   PREFER_REF: ${{ inputs.prefer_ref }}
   PLUGIN_REFS: ${{ inputs.plugin_refs }}
   SERVER_REF_OVERRIDE: ${{ inputs.server_ref }}
@@ -150,6 +154,8 @@ jobs:
           images: ${{ env.IMAGE }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
+            type=schedule,pattern=nightly
+            type=schedule,pattern=nightly-{{date 'YYYYMMDD'}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}

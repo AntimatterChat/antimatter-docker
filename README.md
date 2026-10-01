@@ -94,11 +94,11 @@ leaked, generate a new one, update `keys/` and the server's embedded key, and re
    Images are published to `ghcr.io/antimatterchat/antimatter` with tags `latest` (main),
    `<version>` (tags `vX.Y.Z` or the `version` input) and `sha-<commit>`. Make the package public
    under the organisation's Packages settings if you want anonymous pulls.
-5. `antimatter-next` is built by running the workflow with *variant* `next`, or by a
-   `repository_dispatch` event of type `antimatter-dev-updated`, which the forks can send when
-   their `antimatter-dev` branch changes. It needs a token allowed to write this repository's
-   contents (e.g. a fine-grained token with *Contents: read and write* on antimatter-docker), stored
-   as a secret of the fork:
+5. `antimatter-next` is built every night (03:17 UTC), by running the workflow with *variant*
+   `next`, or by a `repository_dispatch` event of type `antimatter-dev-updated`, which the forks can
+   send to rebuild it as soon as their `antimatter-dev` branch changes. That needs a token allowed
+   to write this repository's contents (e.g. a fine-grained token with *Contents: read and write*
+   on antimatter-docker), stored as a secret of the fork:
    ```yaml
    # .github/workflows/rebuild-antimatter-next.yml in a fork
    on:
@@ -112,8 +112,8 @@ leaked, generate a new one, update `keys/` and the server's embedded key, and re
            env:
              GH_TOKEN: ${{ secrets.ANTIMATTER_DOCKER_DISPATCH_TOKEN }}
    ```
-   Its tags are `latest`, `sha-<commit>` and the `version` input, on
-   `ghcr.io/antimatterchat/antimatter-next`.
+   Its tags are `latest`, `nightly` and `nightly-<YYYYMMDD>` (scheduled builds), `sha-<commit>`
+   and the `version` input, on `ghcr.io/antimatterchat/antimatter-next`.
 
 The forks still carry upstream's GitHub workflows, which need Mattermost's secrets and fail on the
 forks; disable Actions on the fork repositories (Settings → Actions) or delete those workflows.
