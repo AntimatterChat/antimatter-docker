@@ -8,8 +8,8 @@ Two images are built from the same scripts (see *Variants*):
 
 | Image                                   | Variant  | Built from                                                  |
 |-----------------------------------------|----------|-------------------------------------------------------------|
-| `ghcr.io/antimatterchat/antimatter`      | `stable` | the `antimatter` branch of every repository                 |
-| `ghcr.io/antimatterchat/antimatter-next` | `next`   | `antimatter-dev` of the server, Calls and Voice Channels; `antimatter` of the other plugins |
+| `ghcr.io/antimatterchat/antimatter`      | `stable` | the `main` branch of every repository                       |
+| `ghcr.io/antimatterchat/antimatter-next` | `next`   | the `main` branch of every repository, plus the Antimatter-only plugins |
 
 Everything is compiled inside Docker (`docker/build.Dockerfile`), so a local build and the GitHub
 build run the same toolchain.
@@ -34,7 +34,7 @@ build-image.sh     runtime image (Dockerfile)        -> ghcr.io/antimatterchat/a
   plugin with a `"variants"` list is only built for the variants it names, and
   `"overrides": {"<variant>": {"ref": ...}}` changes its fields for one variant.
 
-Both default to an `antimatter` branch in every repository (see *Building on GitHub*). For one
+Both default to the `main` branch of every repository (see *Building on GitHub*). For one
 build, each component's ref is picked as follows (first match wins):
 
 1. an explicit ref: `SERVER_REF=...` for the server; `REF_<PLUGIN>=...` or
@@ -50,16 +50,14 @@ workflow); the other plugins build from their default branch. Give such builds t
 ### Variants
 
 - `stable` (`variants/stable.env`): `build.env` and `plugins.json` as they are.
-- `next` (`variants/next.env`): the `antimatter-dev` integration branches, which carry features
-  not merged into `antimatter` yet (the Fusion web UI, voice channels). The server and Calls build
-  from `antimatter-dev`, and the Voice Channels plugin, which needs both, is only part of this
-  image. Published as `ghcr.io/antimatterchat/antimatter-next`.
+- `next` (`variants/next.env`): the same branches, plus the plugins only built for it (Voice
+  Channels, Polls, Mail, Calendar, Notes, Whiteboard, GIFs; see `"variants"` in `plugins.json`). Published as `ghcr.io/antimatterchat/antimatter-next`.
 
 ```sh
 VARIANT=next scripts/build-all.sh
 ```
 
-With `SOURCES=local`, checkouts still build at their current branch: check out `antimatter-dev`
+With `SOURCES=local`, checkouts still build at their current branch: check out `main`
 where the variant expects it, or set `SERVER_REF_LOCAL` / `REF_<PLUGIN>`.
 
 ## Plugin signing
@@ -79,13 +77,13 @@ leaked, generate a new one, update `keys/` and the server's embedded key, and re
 ## Building on GitHub
 
 1. Create `AntimatterChat/antimatter-docker` and push this repository to it.
-2. Push the work to an `antimatter` branch of each fork (or change the refs in `build.env` /
+2. Push the work to the `main` branch of each fork (or change the refs in `build.env` /
    `plugins.json`), e.g.:
    ```sh
    # server: the branch combining the fork work
-   git -C ../antimatter push <remote> <your-server-branch>:antimatter
+   git -C ../antimatter push <remote> <your-server-branch>:main
    # each plugin
-   git -C ../antimatter-plugin-calls push <remote> <your-plugin-branch>:antimatter
+   git -C ../antimatter-plugin-calls push <remote> <your-plugin-branch>:main
    ```
 3. Add the repository secret `ANTIMATTER_PLUGIN_SIGNING_KEY` (Settings → Secrets and variables →
    Actions) with the full content of `~/.config/antimatter/plugin-signing/private-key.asc`.
@@ -97,20 +95,20 @@ leaked, generate a new one, update `keys/` and the server's embedded key, and re
    and `sha-<commit>`. Make the packages public under the organisation's Packages settings if you
    want anonymous pulls.
 5. `antimatter-next` is also built every night (03:17 UTC), by running the workflow with *variant*
-   `next`, or by a `repository_dispatch` event of type `antimatter-dev-updated`, which the forks can
-   send to rebuild it as soon as their `antimatter-dev` branch changes. That needs a token allowed
+   `next`, or by a `repository_dispatch` event of type `main-updated`, which the forks can
+   send to rebuild it as soon as their `main` branch changes. That needs a token allowed
    to write this repository's contents (e.g. a fine-grained token with *Contents: read and write*
    on antimatter-docker), stored as a secret of the fork:
    ```yaml
    # .github/workflows/rebuild-antimatter-next.yml in a fork
    on:
      push:
-       branches: [antimatter-dev]
+       branches: [main]
    jobs:
      dispatch:
        runs-on: ubuntu-latest
        steps:
-         - run: gh api repos/AntimatterChat/antimatter-docker/dispatches -f event_type=antimatter-dev-updated
+         - run: gh api repos/AntimatterChat/antimatter-docker/dispatches -f event_type=main-updated
            env:
              GH_TOKEN: ${{ secrets.ANTIMATTER_DOCKER_DISPATCH_TOKEN }}
    ```

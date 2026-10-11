@@ -4,10 +4,10 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
-  # Sent when an antimatter-dev branch changes (see README), to rebuild antimatter-next.
+  # Sent when a fork's main branch changes (see README), to rebuild antimatter-next.
   repository_dispatch:
-    types: [antimatter-dev-updated]
-  # Nightly antimatter-next build, picking up whatever changed on the antimatter-dev branches.
+    types: [main-updated]
+  # Nightly antimatter-next build, picking up whatever changed on the main branches.
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:

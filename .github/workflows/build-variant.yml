@@ -147,7 +147,7 @@ jobs:
             type=sha
           labels: |
             org.opencontainers.image.title=${{ env.VARIANT == 'next' && 'Antimatter Next' || 'Antimatter' }}
-            org.opencontainers.image.description=Antimatter team chat server with bundled plugins${{ env.VARIANT == 'next' && ', built from the antimatter-dev branches' || '' }}
+            org.opencontainers.image.description=Antimatter team chat server with bundled plugins${{ env.VARIANT == 'next' && ', with the Antimatter-only plugins' || '' }}
             org.opencontainers.image.licenses=AGPL-3.0-only
       - uses: docker/build-push-action@v6
         with:
