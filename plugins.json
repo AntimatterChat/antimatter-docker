@@ -13,5 +13,7 @@
   {"name": "calendar", "repo": "AntimatterChat/antimatter-plugin-calendar", "ref": "main", "local": "antimatter-plugin-calendar", "version": "0.1.0", "variants": ["next"]},
   {"name": "notes", "repo": "AntimatterChat/antimatter-plugin-notes", "ref": "main", "local": "antimatter-plugin-notes", "version": "0.1.0", "variants": ["next"]},
   {"name": "whiteboard", "repo": "AntimatterChat/antimatter-plugin-whiteboard", "ref": "main", "local": "antimatter-plugin-whiteboard", "version": "0.1.0", "variants": ["next"]},
-  {"name": "gifs", "repo": "AntimatterChat/antimatter-plugin-gifs", "ref": "main", "local": "antimatter-plugin-gifs", "version": "0.1.0", "variants": ["next"]}
+  {"name": "gifs", "repo": "AntimatterChat/antimatter-plugin-gifs", "ref": "main", "local": "antimatter-plugin-gifs", "version": "0.1.0", "variants": ["next"]},
+  {"name": "todo", "repo": "AntimatterChat/antimatter-plugin-todo", "ref": "main", "local": "antimatter-plugin-todo", "version": "0.8.0", "variants": ["next"]},
+  {"name": "memes", "repo": "AntimatterChat/antimatter-plugin-memes", "ref": "main", "local": "antimatter-plugin-memes", "version": "1.6.0", "variants": ["next"]}
 ]

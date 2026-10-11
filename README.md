@@ -51,7 +51,7 @@ workflow); the other plugins build from their default branch. Give such builds t
 
 - `stable` (`variants/stable.env`): `build.env` and `plugins.json` as they are.
 - `next` (`variants/next.env`): the same branches, plus the plugins only built for it (Voice
-  Channels, Polls, Mail, Calendar, Notes, Whiteboard, GIFs; see `"variants"` in `plugins.json`). Published as `ghcr.io/antimatterchat/antimatter-next`.
+  Channels, Polls, Mail, Calendar, Notes, Whiteboard, GIFs, Todo, Memes; see `"variants"` in `plugins.json`). Published as `ghcr.io/antimatterchat/antimatter-next`.
 
 ```sh
 VARIANT=next scripts/build-all.sh
