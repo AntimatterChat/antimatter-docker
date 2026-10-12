@@ -4,7 +4,7 @@
 #   cp .env.example .env && chmod 600 .env    # then fill it in
 #   docker compose up -d
 #
-# The server reads its settings from MM_* variables (the names the server knows today). Settings
+# The server reads its settings from AM_* variables (MM_* works too, for older setups). Settings
 # given here are locked in the System Console; leave the others to the console.
 
 name: antimatter
@@ -48,25 +48,27 @@ services:
         hard: 49152
     tmpfs:
       - /tmp
-    # Other MM_* settings (e-mail, ...) can be added to .env; the server ignores the rest of it.
+    # Other AM_* settings (e-mail, ...) can be added to .env; the server ignores the rest of it.
     env_file:
       - .env
     environment:
       TZ: ${TZ:-UTC}
-      MM_SQLSETTINGS_DRIVERNAME: postgres
-      MM_SQLSETTINGS_DATASOURCE: postgres://${POSTGRES_USER:-antimatter}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-antimatter}?sslmode=disable&connect_timeout=10
-      MM_SERVICESETTINGS_SITEURL: https://${ANTIMATTER_DOMAIN:?set ANTIMATTER_DOMAIN in .env}
-      MM_SERVICESETTINGS_LISTENADDRESS: ":8065"
-      # Client addresses come from nginx (for rate limits, audits and IP filtering).
-      MM_SERVICESETTINGS_TRUSTEDPROXYIPHEADER: X-Forwarded-For X-Real-IP
-      MM_FILESETTINGS_DIRECTORY: /antimatter/data/
-      MM_PLUGINSETTINGS_DIRECTORY: /antimatter/plugins
-      MM_PLUGINSETTINGS_CLIENTDIRECTORY: /antimatter/client/plugins
-      MM_BLEVESETTINGS_INDEXDIR: /antimatter/data/bleve-indexes
+      AM_SQLSETTINGS_DRIVERNAME: postgres
+      AM_SQLSETTINGS_DATASOURCE: postgres://${POSTGRES_USER:-antimatter}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-antimatter}?sslmode=disable&connect_timeout=10
+      AM_SERVICESETTINGS_SITEURL: https://${ANTIMATTER_DOMAIN:?set ANTIMATTER_DOMAIN in .env}
+      AM_SERVICESETTINGS_LISTENADDRESS: ":8065"
+      # Client addresses come from nginx (for rate limits, audits and IP filtering): the headers only
+      # count for requests from the frontend network, where nginx is, so clients can't forge them.
+      AM_SERVICESETTINGS_TRUSTEDPROXYIPHEADER: X-Forwarded-For X-Real-IP
+      AM_SERVICESETTINGS_TRUSTEDPROXYIPS: ${FRONTEND_SUBNET:-172.29.72.0/24}
+      AM_FILESETTINGS_DIRECTORY: /antimatter/data/
+      AM_PLUGINSETTINGS_DIRECTORY: /antimatter/plugins
+      AM_PLUGINSETTINGS_CLIENTDIRECTORY: /antimatter/client/plugins
+      AM_BLEVESETTINGS_INDEXDIR: /antimatter/data/bleve-indexes
       # Calls: its media go straight to this container (not through nginx), see ports below.
-      MM_CALLS_UDP_SERVER_PORT: ${CALLS_PORT:-8443}
-      MM_CALLS_TCP_SERVER_PORT: ${CALLS_PORT:-8443}
-      MM_CALLS_ICE_HOST_OVERRIDE: ${CALLS_ICE_HOST:-}
+      AM_CALLS_UDP_SERVER_PORT: ${CALLS_PORT:-8443}
+      AM_CALLS_TCP_SERVER_PORT: ${CALLS_PORT:-8443}
+      AM_CALLS_ICE_HOST_OVERRIDE: ${CALLS_ICE_HOST:-}
     ports:
       # Calls media, UDP and TCP; same port on the host and in the container. Open it in the
       # firewall.
@@ -192,6 +194,11 @@ services:
 networks:
   # nginx and Antimatter; Antimatter's way out (push notifications, link previews, webhooks...).
   frontend:
+    # A fixed subnet, so Antimatter can trust the proxy headers nginx sends from it. Change
+    # FRONTEND_SUBNET in .env if it overlaps a network of yours.
+    ipam:
+      config:
+        - subnet: ${FRONTEND_SUBNET:-172.29.72.0/24}
   # Antimatter and PostgreSQL only, no Internet access.
   backend:
     internal: true

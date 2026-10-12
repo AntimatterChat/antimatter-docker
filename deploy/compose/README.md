@@ -83,18 +83,24 @@ logging in; anyone who can run `docker compose exec` on the host is a system adm
 
 Server settings come from three places:
 
-1. `compose.yaml` sets those that belong to the deployment as `MM_*` variables: the database,
+1. `compose.yaml` sets those that belong to the deployment as `AM_*` variables: the database,
    `SiteURL` (`https://<ANTIMATTER_DOMAIN>`), the listen address, the file storage
-   (`/antimatter/data`), the plugin directories, the trusted proxy headers and the Calls ports.
-2. Any other `MM_<SECTION>_<SETTING>` variable you add to `.env`, e.g. SMTP (see the end of
+   (`/antimatter/data`), the plugin directories, the trusted proxies and the Calls ports.
+2. Any other `AM_<SECTION>_<SETTING>` variable you add to `.env`, e.g. SMTP (see the end of
    `.env.example`). The whole `.env` is passed to the antimatter container, which only reads the
-   `MM_*` variables.
+   `AM_*` variables (and the older `MM_*` names, which still work).
 3. Everything else: **System Console**, saved in `/antimatter/config/config.json` (the `config`
    volume).
 
-Settings set by variables are shown as locked in the System Console. The server still reads the
-`MM_*` names; `AM_*` names come with the server rebrand. After changing `.env`, apply it with
+Settings set by variables are shown as locked in the System Console. When a setting is given both
+ways, the `AM_*` variable wins over the `MM_*` one. After changing `.env`, apply it with
 `docker compose up -d`.
+
+**Client addresses.** nginx passes each client's address in `X-Forwarded-For` and `X-Real-IP`.
+Antimatter only believes those headers for requests from the `frontend` network, where nginx is
+(`AM_SERVICESETTINGS_TRUSTEDPROXYIPS`, the `FRONTEND_SUBNET` of `.env`), so a client can't fake its
+address to get past IP filtering or rate limits. Behind another proxy or a CDN in front of nginx,
+add its addresses or ranges to that variable (space-separated).
 
 ### TLS
 
@@ -146,10 +152,10 @@ container) and clients connect to it directly. Open the port in the firewall, UD
   clients send the media to. Set it when the host is behind NAT or has no Internet access. Empty,
   Calls finds the address with the STUN server of its *ICE Servers Configurations* setting
   (Mattermost's public one by default).
-- Without Internet access, also empty the STUN servers: `MM_CALLS_ICE_SERVERS_CONFIGS=[]` in
+- Without Internet access, also empty the STUN servers: `AM_CALLS_ICE_SERVERS_CONFIGS=[]` in
   `.env`.
-- Calls settings can be set with `MM_CALLS_<SETTING>` variables (`AM_CALLS_*` also works), e.g.
-  `MM_CALLS_ICE_HOST_PORT_OVERRIDE` when a NAT maps another public port.
+- Calls settings can be set with `AM_CALLS_<SETTING>` variables (`MM_CALLS_*` also works), e.g.
+  `AM_CALLS_ICE_HOST_PORT_OVERRIDE` when a NAT maps another public port.
 - Clients that block UDP fall back to TCP on the same port; behind stricter firewalls, users need
   a TURN server (*ICE Servers Configurations* in **System Console > Plugins > Calls**).
 
@@ -174,8 +180,8 @@ proxies the media files, so browsers and apps never connect to the service. Beca
 request comes from Antimatter with the same key, the service's per-client rate limit is off
 (`GIFS_RATE_LIMIT=0`); the plugin caches answers.
 
-**Plugin settings.** Plugin settings can't be set one by one with `MM_*` variables: the only
-variable is `MM_PLUGINSETTINGS_PLUGINS`, a JSON object that replaces the settings of *every*
+**Plugin settings.** Plugin settings can't be set one by one with `AM_*` variables: the only
+variable is `AM_PLUGINSETTINGS_PLUGINS`, a JSON object that replaces the settings of *every*
 plugin and locks them all in the System Console. Set them with `amctl` instead (or in **System
 Console > Plugins > GIFs**: *GIF service URL* `http://antimatter-gifs:8080/v2`, *API key*):
 
