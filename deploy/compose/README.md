@@ -5,7 +5,7 @@ A production setup on one host, from the published images:
 ```
                  :80, :443                     internal networks
  users ───────▶  nginx  ──────────────▶  antimatter  ──────▶  postgres
-   │            (TLS, redirect,            :8065     ──────▶  antimatter-gifs   (profile gifs)
+   │            (TLS, redirect,            :8065     ──────▶  gifs-server   (profile gifs)
    │             websockets)                 ▲
    └────────── :8443 UDP+TCP (Calls media) ──┘
 ```
@@ -15,7 +15,7 @@ A production setup on one host, from the published images:
 - **antimatter** is `ghcr.io/antimatterchat/antimatter` or `antimatter-next` (see
   [Choosing the image](#choosing-the-image)). Its port 8065 is only reachable by nginx; the Calls
   media port is published directly.
-- **postgres** and **antimatter-gifs** sit on internal networks without Internet access: only
+- **postgres** and **gifs-server** sit on internal networks without Internet access: only
   Antimatter reaches them.
 
 Files: [`compose.yaml`](compose.yaml), [`.env.example`](.env.example) (every variable),
@@ -164,15 +164,15 @@ Voice channels (`antimatter-next`) use Calls and need nothing more.
 ### GIF service and GIFs plugin
 
 With `antimatter-next`, the GIFs plugin adds GIFs and stickers to the emoji picker, backed by
-the [antimatter-gifs](https://github.com/AntimatterChat/antimatter-gifs) service. Enable it with
+the [gifs-server](https://github.com/AntimatterChat/gifs-server) service (called `antimatter-gifs` until October 2026; the compose file keeps that name as a network alias, so plugin settings using `http://antimatter-gifs:8080/v2` still work). Enable it with
 `COMPOSE_PROFILES=gifs` and a `GIFS_API_KEY` (`openssl rand -hex 32`) in `.env`, then
 `docker compose up -d`.
 
-On its first start, the one-shot `antimatter-gifs-init` service imports the bundled sticker pack
+On its first start, the one-shot `gifs-server-init` service imports the bundled sticker pack
 into the `gifs-data` volume (about a minute and a half; `docker compose up -d` waits for it) and
 the service starts. It refuses to start without `GIFS_API_KEY`. To re-import the stickers after an
-upgrade: `docker compose run --rm antimatter-gifs stickers`. To add GIFs, see the service's README
-(`docker compose run --rm -v "$PWD/gifs:/import:ro" antimatter-gifs import -manifest /import/manifest.json`).
+upgrade: `docker compose run --rm gifs-server stickers`. To add GIFs, see the service's README
+(`docker compose run --rm -v "$PWD/gifs:/import:ro" gifs-server import -manifest /import/manifest.json`).
 
 **Internal only (default).** The service is on the internal `gifs` network, which only
 Antimatter shares: no port is published and nginx can't reach it. The plugin calls the API and
@@ -183,14 +183,14 @@ request comes from Antimatter with the same key, the service's per-client rate l
 **Plugin settings.** Plugin settings can't be set one by one with `AM_*` variables: the only
 variable is `AM_PLUGINSETTINGS_PLUGINS`, a JSON object that replaces the settings of *every*
 plugin and locks them all in the System Console. Set them with `amctl` instead (or in **System
-Console > Plugins > GIFs**: *GIF service URL* `http://antimatter-gifs:8080/v2`, *API key*):
+Console > Plugins > GIFs**: *GIF service URL* `http://gifs-server:8080/v2`, *API key*):
 
 ```sh
 env_get() { sed -n "s/^$1=//p" .env; }
 # Settings, merged into the existing configuration (keys in lower case, like the System Console):
 docker compose exec -T antimatter amctl --local config patch /dev/stdin <<EOF
 {"PluginSettings": {"Plugins": {"com.antimatterchat.gifs": {
-  "serviceurl": "http://antimatter-gifs:8080/v2",
+  "serviceurl": "http://gifs-server:8080/v2",
   "apikey": "$(env_get GIFS_API_KEY)",
   "uploadkey": "$(env_get GIFS_UPLOAD_KEY)"
 }}}}
@@ -226,8 +226,8 @@ browsers load the media without going through Antimatter, publish it under
    services:
      nginx:
        networks: [frontend, gifs]
-       depends_on: [antimatter, antimatter-gifs]
-     antimatter-gifs:
+       depends_on: [antimatter, gifs-server]
+     gifs-server:
        environment:
          AM_GIFS_PUBLIC_URL: https://chat.example.com/gifs   # your domain
          AM_GIFS_TRUST_PROXY: "true"                         # client addresses from nginx
@@ -283,7 +283,7 @@ docker run --rm --volumes-from "$(docker compose ps -q antimatter)" -v "$PWD/bac
     antimatter/config antimatter/data antimatter/plugins antimatter/client/plugins
 # GIF service (profile gifs): its index and media
 docker run --rm -v antimatter_gifs-data:/data:ro -v "$PWD/backups:/backup" \
-    alpine tar -czf "/backup/antimatter-gifs-$stamp.tar.gz" -C / data
+    alpine tar -czf "/backup/gifs-server-$stamp.tar.gz" -C / data
 ```
 
 `config` and `data` are the essential ones; the plugin directories can be large and are rebuilt
@@ -303,7 +303,7 @@ docker run --rm --volumes-from "$(docker compose ps -aq antimatter)" -v "$PWD/ba
 # GIF service (profile gifs)
 docker volume create antimatter_gifs-data
 docker run --rm -v antimatter_gifs-data:/data -v "$PWD/backups:/backup" \
-    alpine tar -xzf "/backup/antimatter-gifs-<stamp>.tar.gz" -C /
+    alpine tar -xzf "/backup/gifs-server-<stamp>.tar.gz" -C /
 docker compose up -d
 ```
 

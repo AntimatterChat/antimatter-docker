@@ -110,6 +110,6 @@ server {
     #
     # location /gifs/ {
     #     proxy_read_timeout 60s;
-    #     proxy_pass http://antimatter-gifs:8080/;
+    #     proxy_pass http://gifs-server:8080/;
     # }
 }

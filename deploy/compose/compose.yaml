@@ -128,12 +128,12 @@ services:
 
   # The GIF and sticker service for the GIFs plugin (antimatter-next only), on profile "gifs".
   # Only Antimatter reaches it, on the internal gifs network.
-  antimatter-gifs:
-    image: ${GIFS_IMAGE:-ghcr.io/antimatterchat/antimatter-gifs:latest}
+  gifs-server:
+    image: ${GIFS_IMAGE:-ghcr.io/antimatterchat/gifs-server:latest}
     profiles: [gifs]
     restart: unless-stopped
     depends_on:
-      antimatter-gifs-init:
+      gifs-server-init:
         condition: service_completed_successfully
     read_only: true
     tmpfs:
@@ -150,13 +150,15 @@ services:
     volumes:
       - gifs-data:/data
     networks:
-      - gifs
+      gifs:
+        # Its name until October 2026, which GIFs plugin settings may still use.
+        aliases: [antimatter-gifs]
 
   # One-shot, before the GIF service starts: checks that it has an API key (without one its API
   # would be open) and imports the bundled sticker pack into a new volume, then exits. Later runs
-  # only check; re-import the stickers with `docker compose run --rm antimatter-gifs stickers`.
-  antimatter-gifs-init:
-    image: ${GIFS_IMAGE:-ghcr.io/antimatterchat/antimatter-gifs:latest}
+  # only check; re-import the stickers with `docker compose run --rm gifs-server stickers`.
+  gifs-server-init:
+    image: ${GIFS_IMAGE:-ghcr.io/antimatterchat/gifs-server:latest}
     profiles: [gifs]
     restart: "no"
     read_only: true
@@ -172,7 +174,7 @@ services:
       - >-
         if [ -z "$${AM_GIFS_API_KEYS}" ]; then echo "Set GIFS_API_KEY in .env" >&2; exit 1; fi;
         [ -e /data/.stickers-imported ] ||
-        { antimatter-gifs stickers && touch /data/.stickers-imported; }
+        { gifs-server stickers && touch /data/.stickers-imported; }
     volumes:
       - gifs-data:/data
 
