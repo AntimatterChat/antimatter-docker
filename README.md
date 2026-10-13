@@ -174,6 +174,16 @@ provides `antimatter` and `amctl` in `/antimatter/bin` (renamed from `mattermost
 built from a server ref older than that rename). The server still reads its settings from
 `MM_*` environment variables until its own rebrand adds the `AM_*` names.
 
+## Feedback and support
+
+Found a bug in the Docker image, or missing a feature? Please [open an
+issue](https://github.com/AntimatterChat/community/issues/new/choose) in the [Antimatter community
+repository](https://github.com/AntimatterChat/community), where the feedback for every part of
+Antimatter is gathered. Questions and ideas are welcome in its
+[Discussions](https://github.com/AntimatterChat/community/discussions). Please report security
+problems privately, as explained in the [security
+policy](https://github.com/AntimatterChat/.github/blob/main/SECURITY.md).
+
 ## License
 
 Apache License 2.0 (see `LICENSE`), except `Dockerfile`, which is adapted from the Mattermost
