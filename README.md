@@ -174,6 +174,12 @@ provides `antimatter` and `amctl` in `/antimatter/bin` (renamed from `mattermost
 built from a server ref older than that rename). The server still reads its settings from
 `MM_*` environment variables until its own rebrand adds the `AM_*` names.
 
+## Documentation
+
+The admin guide covers [installing](https://antimatter.chat/docs/admins/install.html) and
+[configuring](https://antimatter.chat/docs/admins/configuration.html) Antimatter from this image, on
+[antimatter.chat/docs](https://antimatter.chat/docs/).
+
 ## Feedback and support
 
 Found a bug in the Docker image, or missing a feature? Please [open an
